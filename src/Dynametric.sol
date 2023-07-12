@@ -7,6 +7,8 @@ contract Dynametric {
     /**
      * Errors
      */
+    error Dynametric__CannotCreatePoolWithSameToken(address token);
+    error Dynametric__PoolAlreadyExists(address token0, address token1);
     error Dynametric__PoolDoesNotExist(address token0, address token1);
     error Dynametric__AmountIsZero();
     error Dynametric__ExceededMaxSlippage(
@@ -53,8 +55,36 @@ contract Dynametric {
     );
 
     /**
-     * Function
+     * Functions
      */
+    function createPool(
+        address token0,
+        uint256 amount0,
+        address token1,
+        uint256 amount1
+    ) external {
+        // Checks
+        if (amount0 == 0 || amount1 == 0) revert Dynametric__AmountIsZero();
+        if (token0 == token1) revert Dynametric__CannotCreatePoolWithSameToken(token0);
+        if (!tokensInOrder(token0, token1)) {
+            (token0, token1) = swap(token0, token1);
+            (amount0, amount1) = swap(amount0, amount1);
+        }
+        if (s_pools[token0][token1].token0 != address(0))
+            revert Dynametric__PoolAlreadyExists(token0, token1);
+
+        // Effects
+        s_pools[token0][token1] = Pool({
+            token0: token0,
+            token1: token1,
+            amount0: amount0,
+            amount1: amount1,
+            uint256 numLPtokens;
+        })
+        // Interactions
+        // Invariant
+    }
+
     function swapExactInputForOutput(
         address tokenIn,
         uint256 amountIn,
@@ -69,7 +99,7 @@ contract Dynametric {
         uint256 amount0;
         uint256 amount1;
 
-        if (uint160(tokenIn) < uint160(tokenOut)) {
+        if (tokensInOrder(tokenIn, tokenOut)) {
             token0 = tokenIn;
             token1 = tokenOut;
             amount0 = amountIn;
@@ -126,5 +156,35 @@ contract Dynametric {
                 newAmount0,
                 newAmount1
             );
+    }
+
+    /**
+     * View/Pure Functions
+     */
+    function tokensInOrder(
+        address token0,
+        address token1
+    ) private pure returns (bool) {
+        return uint160(token0) < uint160(token1);
+    }
+
+    function swap(
+        address address1,
+        address address2
+    ) private pure returns (address, address) {
+        address temp = address1;
+        address1 = address2;
+        address2 = temp;
+        return (address1, address2);
+    }
+
+    function swap(
+        uint256 a,
+        uint256 b
+    ) private pure returns (uint256, uint256) {
+        uint256 temp = a;
+        a = b;
+        b = temp;
+        return (a, b);
     }
 }

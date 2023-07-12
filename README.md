@@ -16,3 +16,19 @@ Liquidity providers:
 - create liquidity pools
 - add liquidity by depositing an equal amount of both tokens in a pool
 - remove liquidity by withdrawing tokens from a pool
+
+Roadmap:
+- [x] swapExactInputForOutput
+- [ ] create liquidity pool
+- [ ] testing
+- [ ] dynamic fees
+- [ ] testing
+- [ ] asymmetric fees
+- [ ] testing
+- [ ] swapInputForExactOutput (+ refactoring)
+- [ ] testing
+- [ ] add liquidity (+ refactoring)
+- [ ] remove liquidity (+ refactoring)
+- [ ] testing
+- [ ] invariant testing
+  
