@@ -8,8 +8,8 @@ contract Dynametric is ReentrancyGuard {
     /**
      * Constants
      */
-    uint256 constant MINIMUM_LIQUIDITY = 10**3;
-    
+    uint256 constant private MINIMUM_LIQUIDITY = 10 ** 3;
+
     /**
      * Errors
      */
@@ -47,8 +47,9 @@ contract Dynametric is ReentrancyGuard {
     /**
      * State Variables
      */
-    mapping(address token0 => mapping(address token1 => Pool)) s_pools;
-    mapping(address token0 => mapping(address token1 => mapping(address user => uint256 numLPtokens))) lpBalances;
+    mapping(address token0 => mapping(address token1 => Pool)) private s_pools;
+    mapping(address token0 => mapping(address token1 => mapping(address user => uint256 numLPtokens)))
+        private lpBalances;
 
     /**
      * Events
