@@ -32,3 +32,10 @@ Roadmap:
 - [ ] testing
 - [ ] invariant testing
   
+
+////////////////////////////////////////////
+///////////    OPEN QUESTIONS    ///////////
+////////////////////////////////////////////
+
+1. Should I add the Pool to both sides of the mapping? If so, I'll need to create an array of pools, with each mapping being to a uint256
+2. 

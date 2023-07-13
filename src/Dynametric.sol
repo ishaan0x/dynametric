@@ -6,8 +6,9 @@ import {ReentrancyGuard} from "openzeppelin/security/ReentrancyGuard.sol";
 
 contract Dynametric is ReentrancyGuard {
     /**
-     * Reentrancy
+     * Constants
      */
+    uint256 constant MINIMUM_LIQUIDITY = 10**3;
     
     /**
      * Errors
@@ -81,15 +82,19 @@ contract Dynametric is ReentrancyGuard {
             revert Dynametric__PoolAlreadyExists(token0, token1);
 
         // Effects
+        uint256 numLPtokens = (amount0 * amount1);
+        uint256 userLPtokens = numLPtokens - MINIMUM_LIQUIDITY;
         s_pools[token0][token1] = Pool({
             token0: token0,
             token1: token1,
             amount0: amount0,
             amount1: amount1,
-            numLPtokens: 0
+            numLPtokens: numLPtokens
         });
-        // Interactions
-        // Invariant
+        lpBalances[token0][token1][msg.sender] = userLPtokens;
+
+        // Interactions - N/A
+        // Invariant - N/A
     }
 
     function swapExactInputForOutput(
