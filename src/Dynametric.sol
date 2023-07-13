@@ -2,8 +2,13 @@
 pragma solidity ^0.8.19;
 
 import {IERC20} from "openzeppelin/token/ERC20/ERC20.sol";
+import {ReentrancyGuard} from "openzeppelin/security/ReentrancyGuard.sol";
 
-contract Dynametric {
+contract Dynametric is ReentrancyGuard {
+    /**
+     * Reentrancy
+     */
+    
     /**
      * Errors
      */
@@ -42,6 +47,7 @@ contract Dynametric {
      * State Variables
      */
     mapping(address token0 => mapping(address token1 => Pool)) s_pools;
+    mapping(address token0 => mapping(address token1 => mapping(address user => uint256 numLPtokens))) lpBalances;
 
     /**
      * Events
@@ -62,10 +68,11 @@ contract Dynametric {
         uint256 amount0,
         address token1,
         uint256 amount1
-    ) external {
+    ) external nonReentrant {
         // Checks
         if (amount0 == 0 || amount1 == 0) revert Dynametric__AmountIsZero();
-        if (token0 == token1) revert Dynametric__CannotCreatePoolWithSameToken(token0);
+        if (token0 == token1)
+            revert Dynametric__CannotCreatePoolWithSameToken(token0);
         if (!tokensInOrder(token0, token1)) {
             (token0, token1) = swap(token0, token1);
             (amount0, amount1) = swap(amount0, amount1);
@@ -79,8 +86,8 @@ contract Dynametric {
             token1: token1,
             amount0: amount0,
             amount1: amount1,
-            uint256 numLPtokens;
-        })
+            numLPtokens: 0
+        });
         // Interactions
         // Invariant
     }
@@ -90,7 +97,7 @@ contract Dynametric {
         uint256 amountIn,
         address tokenOut,
         uint256 minAmountOut
-    ) external {
+    ) external nonReentrant {
         // Checks
         if (amountIn == 0) revert Dynametric__AmountIsZero();
 

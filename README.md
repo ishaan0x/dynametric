@@ -19,7 +19,7 @@ Liquidity providers:
 
 Roadmap:
 - [x] swapExactInputForOutput
-- [ ] create liquidity pool
+- [ ] createPool
 - [ ] testing
 - [ ] dynamic fees
 - [ ] testing
