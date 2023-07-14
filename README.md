@@ -21,7 +21,7 @@ Roadmap:
 - [x] swapExactInputForOutput
 - [x] createPool
 - [x] scripting
-- [ ] testing
+- [x] testing
 - [ ] fees
 - [ ] testing
 - [ ] dynamic fees

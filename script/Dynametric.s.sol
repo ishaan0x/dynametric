@@ -6,8 +6,9 @@ import {Dynametric} from "../src/Dynametric.sol";
 
 contract DeployDynametric is Script {
     function run() public returns(Dynametric) {
-        vm.broadcast();
+        vm.startBroadcast();
         Dynametric dynametric = new Dynametric();
+        vm.stopBroadcast();
 
         return dynametric;
     }

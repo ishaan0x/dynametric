@@ -49,7 +49,7 @@ contract Dynametric is ReentrancyGuard {
      */
     mapping(address token0 => mapping(address token1 => Pool)) private s_pools;
     mapping(address token0 => mapping(address token1 => mapping(address user => uint256 numLPtokens)))
-        private lpBalances;
+        private s_lpBalances;
 
     /**
      * Events
@@ -92,9 +92,12 @@ contract Dynametric is ReentrancyGuard {
             amount1: amount1,
             numLPtokens: numLPtokens
         });
-        lpBalances[token0][token1][msg.sender] = userLPtokens;
+        s_lpBalances[token0][token1][msg.sender] = userLPtokens;
 
-        // Interactions - N/A
+        // Interactions
+        IERC20(token0).transferFrom(msg.sender, address(this), amount0);
+        IERC20(token1).transferFrom(msg.sender, address(this), amount1);
+
         // Invariant - N/A
     }
 
@@ -134,11 +137,11 @@ contract Dynametric is ReentrancyGuard {
 
         if (amount0 == 0) {
             newAmount1 = pool.amount1 + amount1;
-            newAmount0 = k / pool.amount1;
+            newAmount0 = k / newAmount1;
             amountOut = pool.amount0 - newAmount0;
         } else {
             newAmount0 = pool.amount0 + amount0;
-            newAmount1 = k / pool.amount1;
+            newAmount1 = k / newAmount0;
             amountOut = pool.amount1 - newAmount1;
         }
 
@@ -199,5 +202,25 @@ contract Dynametric is ReentrancyGuard {
         a = b;
         b = temp;
         return (a, b);
+    }
+
+    /**
+     * Getter Functions
+     */
+
+    // Getter function for s_pools
+    function getPool(address token0, address token1) public view returns (Pool memory) {
+        if (tokensInOrder(token0, token1))
+            return s_pools[token0][token1];
+        else
+            return s_pools[token1][token0];
+    }
+
+    // Getter function for s_lpBalances
+    function getLPBalance(address token0, address token1, address user) public view returns (uint256) {
+        if (tokensInOrder(token0, token1))
+            return s_lpBalances[token0][token1][user];
+        else
+            return s_lpBalances[token1][token0][user];
     }
 }
