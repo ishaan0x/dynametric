@@ -22,8 +22,8 @@ Roadmap:
 - [x] createPool
 - [x] scripting
 - [x] testing
-- [ ] fees
-- [ ] testing
+- [x] fees
+- [x] testing
 - [ ] dynamic fees
 - [ ] testing
 - [ ] asymmetric fees

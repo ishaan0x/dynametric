@@ -9,6 +9,7 @@ contract Dynametric is ReentrancyGuard {
      * Constants
      */
     uint256 constant private MINIMUM_LIQUIDITY = 10 ** 3;
+    uint256 constant private PRECISION = 10 ** 4;
 
     /**
      * Errors
@@ -138,11 +139,11 @@ contract Dynametric is ReentrancyGuard {
         if (amount0 == 0) {
             newAmount1 = pool.amount1 + amount1;
             newAmount0 = k / newAmount1;
-            amountOut = pool.amount0 - newAmount0;
+            amountOut = (pool.amount0 - newAmount0) * (PRECISION - getFee()) / PRECISION;
         } else {
             newAmount0 = pool.amount0 + amount0;
             newAmount1 = k / newAmount0;
-            amountOut = pool.amount1 - newAmount1;
+            amountOut = (pool.amount1 - newAmount1) * (PRECISION - getFee()) / PRECISION;
         }
 
         if (amountOut < minAmountOut)
@@ -177,6 +178,10 @@ contract Dynametric is ReentrancyGuard {
     /**
      * View/Pure Functions
      */
+    function getFee() private pure returns(uint256) {
+        return 30;
+    }
+
     function tokensInOrder(
         address token0,
         address token1
