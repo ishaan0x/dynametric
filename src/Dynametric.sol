@@ -8,8 +8,9 @@ contract Dynametric is ReentrancyGuard {
     /**
      * Constants
      */
-    uint256 constant private MINIMUM_LIQUIDITY = 10 ** 3;
-    uint256 constant private PRECISION = 10 ** 4;
+    uint256 constant private MINIMUM_LIQUIDITY = 1e3;
+    uint256 constant private PRECISION = 1e4;
+    uint256 constant private PRICE_FLOATING = 1e9;
 
     /**
      * Errors
@@ -42,7 +43,13 @@ contract Dynametric is ReentrancyGuard {
         address token1;
         uint256 amount0;
         uint256 amount1;
+
         uint256 numLPtokens;
+
+        uint256 highPrice;
+        uint256 lowPrice;
+        uint256 volatilityIndex;
+        uint256 lastUpdate;
     }
 
     /**
@@ -86,12 +93,17 @@ contract Dynametric is ReentrancyGuard {
         // Effects
         uint256 numLPtokens = (amount0 * amount1);
         uint256 userLPtokens = numLPtokens - MINIMUM_LIQUIDITY;
+        uint256 _currentPrice = currentPrice(token0, token1);
         s_pools[token0][token1] = Pool({
             token0: token0,
             token1: token1,
             amount0: amount0,
             amount1: amount1,
-            numLPtokens: numLPtokens
+            numLPtokens: numLPtokens,
+            highPrice: _currentPrice,
+            lowPrice: _currentPrice,
+            volatilityIndex: 0,
+            lastUpdate: block.timestamp
         });
         s_lpBalances[token0][token1][msg.sender] = userLPtokens;
 
@@ -126,9 +138,7 @@ contract Dynametric is ReentrancyGuard {
             amount1 = amountIn;
         }
 
-        Pool memory pool = s_pools[token0][token1];
-        if (pool.token0 == address(0))
-            revert Dynametric__PoolDoesNotExist(token0, token1);
+        Pool memory pool = _getPool(token0, token1);
 
         // Effects
         uint256 k = pool.amount0 * pool.amount1;
@@ -178,6 +188,27 @@ contract Dynametric is ReentrancyGuard {
     /**
      * View/Pure Functions
      */
+
+    // Returns price of asset0 in terms of asset1
+    function currentPrice(address token0, address token1) private view returns(uint256) {
+        if (!tokensInOrder(token0, token1)) 
+            (token0, token1) = swap(token0, token1);
+        
+        Pool memory pool = s_pools[token0][token1];
+        return currentRatio(pool.amount0, pool.amount1);
+    }
+
+    // Returns price of asset0 in terms of asset1
+    function currentRatio(uint256 amount0, uint256 amount1) private pure returns(uint256) {
+        return (amount1 * PRICE_FLOATING / amount0);
+    }
+
+    function _getPool(address token0, address token1) private view returns (Pool memory pool) {
+        pool = s_pools[token0][token1];
+        if (pool.token0 == address(0))
+            revert Dynametric__PoolDoesNotExist(token0, token1);
+    }
+
     function getFee() private pure returns(uint256) {
         return 30;
     }
@@ -216,9 +247,9 @@ contract Dynametric is ReentrancyGuard {
     // Getter function for s_pools
     function getPool(address token0, address token1) public view returns (Pool memory) {
         if (tokensInOrder(token0, token1))
-            return s_pools[token0][token1];
+            return _getPool(token0, token1);
         else
-            return s_pools[token1][token0];
+            return _getPool(token1, token0);
     }
 
     // Getter function for s_lpBalances
