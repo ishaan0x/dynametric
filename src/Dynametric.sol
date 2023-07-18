@@ -29,7 +29,7 @@ contract Dynametric is ReentrancyGuard {
         uint256 amountIn,
         address tokenOut,
         uint256 amountOut,
-        uint256 minAmountOut
+        uint256 causeOfError
     );
     error Dynametric__SwapFailed(
         address token0,
@@ -169,6 +169,90 @@ contract Dynametric is ReentrancyGuard {
                 tokenOut,
                 amountOut,
                 minAmountOut
+            );
+
+        s_pools[token0][token1].amount0 = newAmount0;
+        s_pools[token0][token1].amount1 = newAmount1;
+        emit Swap(msg.sender, tokenIn, amountIn, tokenOut, amountOut);
+
+        uint256 newPrice = currentRatio(newAmount0, newAmount1);
+        if (block.timestamp >= pool.lastUpdate + VOLATILITY_UPDATE_WAIT) {
+            s_pools[token0][token1].lastUpdate = block.timestamp;
+            s_pools[token0][token1].highPrice = newPrice;
+            s_pools[token0][token1].highPrice = newPrice;
+        } else if (newPrice > pool.highPrice)
+            s_pools[token0][token1].highPrice = newPrice;
+        else if (newPrice < pool.lowPrice)
+            s_pools[token0][token1].highPrice = newPrice;
+
+        // Interactions
+        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
+        IERC20(tokenOut).transfer(msg.sender, amountOut);
+
+        // Invariants
+        if (newAmount0 * newAmount1 < k)
+            revert Dynametric__SwapFailed(
+                token0,
+                token1,
+                pool.amount0,
+                pool.amount1,
+                newAmount0,
+                newAmount1
+            );
+    }
+
+    function swapInputForExactOutput(
+        address tokenIn,
+        uint256 maxAmountIn,
+        address tokenOut,
+        uint256 amountOut
+    ) external nonReentrant {
+        // Checks
+        if (amountOut == 0) revert Dynametric__AmountIsZero();
+
+        address token0;
+        address token1;
+        bool _tokensInOrder = tokensInOrder(tokenIn, tokenOut);
+
+        if (_tokensInOrder) {
+            token0 = tokenIn;
+            token1 = tokenOut;
+        } else {
+            token0 = tokenOut;
+            token1 = tokenIn;
+        }
+
+        Pool memory pool = _getPool(token0, token1);
+
+        // Effects
+        uint256 k = pool.amount0 * pool.amount1;
+        uint256 newAmount0;
+        uint256 newAmount1;
+        uint256 amountIn;
+
+        if (_tokensInOrder) {
+            newAmount1 = pool.amount1 - amountOut;
+            newAmount0 = k / newAmount1;
+            amountIn =
+                ((pool.amount0 - newAmount0) *
+                    (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
+                PRECISION;
+        } else {
+            newAmount0 = pool.amount0 - amountOut;
+            newAmount1 = k / newAmount0;
+            amountIn =
+                ((pool.amount1 - newAmount1) *
+                    (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
+                PRECISION;
+        }
+
+        if (amountIn > maxAmountIn)
+            revert Dynametric__ExceededMaxSlippage(
+                tokenIn,
+                amountIn,
+                tokenOut,
+                amountOut,
+                maxAmountIn
             );
 
         s_pools[token0][token1].amount0 = newAmount0;
