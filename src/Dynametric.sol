@@ -11,6 +11,10 @@ contract Dynametric is ReentrancyGuard {
     uint256 private constant MINIMUM_LIQUIDITY = 1e3;
     uint256 private constant PRECISION = 1e4;
     uint256 private constant PRICE_FLOATING = 1e9;
+    uint256 private constant LOW_VOLATILITY_BARRIER = 0.02e9;
+    uint256 private constant HIGH_VOLATILITY_BARRIER = 0.05e9;
+    uint256 private constant MIN_VOLATILITY = 30;
+    uint256 private constant MAX_VOLATILITY = 100;
     uint256 private constant VOLATILITY_UPDATE_WAIT = 10 * 60; // 10 minutes
 
     /**
@@ -233,8 +237,20 @@ contract Dynametric is ReentrancyGuard {
             revert Dynametric__PoolDoesNotExist(token0, token1);
     }
 
-    function getFee(uint256 highPrice, uint256 lowPrice) private pure returns (uint256) {
-        return 30;
+    function getFee(
+        uint256 highPrice,
+        uint256 lowPrice
+    ) private pure returns (uint256) {
+        uint256 percentVolatility = ((highPrice - lowPrice) * PRICE_FLOATING) /
+            lowPrice;
+
+        if (percentVolatility <= LOW_VOLATILITY_BARRIER) return MIN_VOLATILITY;
+        if (percentVolatility >= HIGH_VOLATILITY_BARRIER) return MAX_VOLATILITY;
+
+        return
+            ((MAX_VOLATILITY - MIN_VOLATILITY) *
+                (percentVolatility - LOW_VOLATILITY_BARRIER)) /
+            (HIGH_VOLATILITY_BARRIER - LOW_VOLATILITY_BARRIER);
     }
 
     function tokensInOrder(
