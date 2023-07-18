@@ -123,82 +123,29 @@ contract Dynametric is ReentrancyGuard {
         address tokenOut,
         uint256 minAmountOut
     ) external nonReentrant {
-        // Checks
-        if (amountIn == 0) revert Dynametric__AmountIsZero();
+        require(amountIn > 0, "Amount is zero");
 
-        address token0;
-        address token1;
-        bool _tokensInOrder = tokensInOrder(tokenIn, tokenOut);
-
-        if (_tokensInOrder) {
-            token0 = tokenIn;
-            token1 = tokenOut;
-        } else {
-            token0 = tokenOut;
-            token1 = tokenIn;
-        }
+        (address token0, address token1, bool _tokensInOrder) = _getTokensOrder(
+            tokenIn,
+            tokenOut
+        );
 
         Pool memory pool = _getPool(token0, token1);
+        (
+            uint256 newAmount0,
+            uint256 newAmount1,
+            uint256 amountOut
+        ) = _getNewAmounts(pool, amountIn, _tokensInOrder);
 
-        // Effects
-        uint256 k = pool.amount0 * pool.amount1;
-        uint256 newAmount0;
-        uint256 newAmount1;
-        uint256 amountOut;
+        require(amountOut >= minAmountOut, "Exceeded max slippage");
 
-        if (!_tokensInOrder) {
-            newAmount1 = pool.amount1 + amountIn;
-            newAmount0 = k / newAmount1;
-            amountOut =
-                ((pool.amount0 - newAmount0) *
-                    (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
-                PRECISION;
-        } else {
-            newAmount0 = pool.amount0 + amountIn;
-            newAmount1 = k / newAmount0;
-            amountOut =
-                ((pool.amount1 - newAmount1) *
-                    (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
-                PRECISION;
-        }
+        _updatePool(token0, token1, newAmount0, newAmount1);
+        _transferTokens(tokenIn, tokenOut, amountIn, amountOut);
 
-        if (amountOut < minAmountOut)
-            revert Dynametric__ExceededMaxSlippage(
-                tokenIn,
-                amountIn,
-                tokenOut,
-                amountOut,
-                minAmountOut
-            );
-
-        s_pools[token0][token1].amount0 = newAmount0;
-        s_pools[token0][token1].amount1 = newAmount1;
-        emit Swap(msg.sender, tokenIn, amountIn, tokenOut, amountOut);
-
-        uint256 newPrice = currentRatio(newAmount0, newAmount1);
-        if (block.timestamp >= pool.lastUpdate + VOLATILITY_UPDATE_WAIT) {
-            s_pools[token0][token1].lastUpdate = block.timestamp;
-            s_pools[token0][token1].highPrice = newPrice;
-            s_pools[token0][token1].highPrice = newPrice;
-        } else if (newPrice > pool.highPrice)
-            s_pools[token0][token1].highPrice = newPrice;
-        else if (newPrice < pool.lowPrice)
-            s_pools[token0][token1].highPrice = newPrice;
-
-        // Interactions
-        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
-        IERC20(tokenOut).transfer(msg.sender, amountOut);
-
-        // Invariants
-        if (newAmount0 * newAmount1 < k)
-            revert Dynametric__SwapFailed(
-                token0,
-                token1,
-                pool.amount0,
-                pool.amount1,
-                newAmount0,
-                newAmount1
-            );
+        require(
+            newAmount0 * newAmount1 >= pool.amount0 * pool.amount1,
+            "Swap failed"
+        );
     }
 
     function swapInputForExactOutput(
@@ -207,82 +154,103 @@ contract Dynametric is ReentrancyGuard {
         address tokenOut,
         uint256 amountOut
     ) external nonReentrant {
-        // Checks
-        if (amountOut == 0) revert Dynametric__AmountIsZero();
+        require(amountOut > 0, "Amount is zero");
 
-        address token0;
-        address token1;
-        bool _tokensInOrder = tokensInOrder(tokenIn, tokenOut);
-
-        if (_tokensInOrder) {
-            token0 = tokenIn;
-            token1 = tokenOut;
-        } else {
-            token0 = tokenOut;
-            token1 = tokenIn;
-        }
+        (address token0, address token1, bool _tokensInOrder) = _getTokensOrder(
+            tokenIn,
+            tokenOut
+        );
 
         Pool memory pool = _getPool(token0, token1);
+        (
+            uint256 newAmount0,
+            uint256 newAmount1,
+            uint256 amountIn
+        ) = _getNewAmounts(pool, amountOut, !_tokensInOrder);
 
-        // Effects
+        require(amountIn <= maxAmountIn, "Exceeded max slippage");
+
+        _updatePool(token0, token1, newAmount0, newAmount1);
+        _transferTokens(tokenIn, tokenOut, amountIn, amountOut);
+
+        require(
+            newAmount0 * newAmount1 >= pool.amount0 * pool.amount1,
+            "Swap failed"
+        );
+    }
+
+    function _getNewAmounts(
+        Pool memory pool,
+        uint256 amount,
+        bool _tokensInOrder
+    )
+        internal
+        pure
+        returns (uint256 newAmount0, uint256 newAmount1, uint256 amountOut)
+    {
         uint256 k = pool.amount0 * pool.amount1;
-        uint256 newAmount0;
-        uint256 newAmount1;
-        uint256 amountIn;
-
         if (_tokensInOrder) {
-            newAmount1 = pool.amount1 - amountOut;
+            newAmount1 = pool.amount1 + amount;
             newAmount0 = k / newAmount1;
-            amountIn =
+            amountOut =
                 ((pool.amount0 - newAmount0) *
                     (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
                 PRECISION;
         } else {
-            newAmount0 = pool.amount0 - amountOut;
+            newAmount0 = pool.amount0 + amount;
             newAmount1 = k / newAmount0;
-            amountIn =
+            amountOut =
                 ((pool.amount1 - newAmount1) *
                     (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
                 PRECISION;
         }
+    }
 
-        if (amountIn > maxAmountIn)
-            revert Dynametric__ExceededMaxSlippage(
-                tokenIn,
-                amountIn,
-                tokenOut,
-                amountOut,
-                maxAmountIn
-            );
-
-        s_pools[token0][token1].amount0 = newAmount0;
-        s_pools[token0][token1].amount1 = newAmount1;
-        emit Swap(msg.sender, tokenIn, amountIn, tokenOut, amountOut);
+    function _updatePool(
+        address token0,
+        address token1,
+        uint256 newAmount0,
+        uint256 newAmount1
+    ) internal {
+        Pool storage pool = s_pools[token0][token1];
+        pool.amount0 = newAmount0;
+        pool.amount1 = newAmount1;
 
         uint256 newPrice = currentRatio(newAmount0, newAmount1);
         if (block.timestamp >= pool.lastUpdate + VOLATILITY_UPDATE_WAIT) {
-            s_pools[token0][token1].lastUpdate = block.timestamp;
-            s_pools[token0][token1].highPrice = newPrice;
-            s_pools[token0][token1].highPrice = newPrice;
-        } else if (newPrice > pool.highPrice)
-            s_pools[token0][token1].highPrice = newPrice;
-        else if (newPrice < pool.lowPrice)
-            s_pools[token0][token1].highPrice = newPrice;
+            pool.lastUpdate = block.timestamp;
+            pool.highPrice = newPrice;
+            pool.lowPrice = newPrice;
+        } else if (newPrice > pool.highPrice) {
+            pool.highPrice = newPrice;
+        } else if (newPrice < pool.lowPrice) {
+            pool.lowPrice = newPrice;
+        }
+    }
 
-        // Interactions
+    function _transferTokens(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        uint256 amountOut
+    ) internal {
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
         IERC20(tokenOut).transfer(msg.sender, amountOut);
+    }
 
-        // Invariants
-        if (newAmount0 * newAmount1 < k)
-            revert Dynametric__SwapFailed(
-                token0,
-                token1,
-                pool.amount0,
-                pool.amount1,
-                newAmount0,
-                newAmount1
-            );
+    function _getTokensOrder(
+        address tokenIn,
+        address tokenOut
+    )
+        internal
+        pure
+        returns (address token0, address token1, bool _tokensInOrder)
+    {
+        if (tokenIn < tokenOut) {
+            return (tokenIn, tokenOut, true);
+        } else {
+            return (tokenOut, tokenIn, false);
+        }
     }
 
     /**
