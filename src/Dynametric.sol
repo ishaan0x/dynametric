@@ -128,17 +128,14 @@ contract Dynametric is ReentrancyGuard {
 
         address token0;
         address token1;
-        uint256 amount0;
-        uint256 amount1;
+        bool _tokensInOrder = tokensInOrder(tokenIn, tokenOut);
 
-        if (tokensInOrder(tokenIn, tokenOut)) {
+        if (_tokensInOrder) {
             token0 = tokenIn;
             token1 = tokenOut;
-            amount0 = amountIn;
         } else {
             token0 = tokenOut;
             token1 = tokenIn;
-            amount1 = amountIn;
         }
 
         Pool memory pool = _getPool(token0, token1);
@@ -149,15 +146,15 @@ contract Dynametric is ReentrancyGuard {
         uint256 newAmount1;
         uint256 amountOut;
 
-        if (amount0 == 0) {
-            newAmount1 = pool.amount1 + amount1;
+        if (!_tokensInOrder) {
+            newAmount1 = pool.amount1 + amountIn;
             newAmount0 = k / newAmount1;
             amountOut =
                 ((pool.amount0 - newAmount0) *
                     (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
                 PRECISION;
         } else {
-            newAmount0 = pool.amount0 + amount0;
+            newAmount0 = pool.amount0 + amountIn;
             newAmount1 = k / newAmount0;
             amountOut =
                 ((pool.amount1 - newAmount1) *

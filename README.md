@@ -25,7 +25,7 @@ Roadmap:
 - [x] fees
 - [x] testing
 - [x] dynamic fees
-- [ ] testing
+- [x] testing
 - [ ] swapInputForExactOutput (+ refactoring)
 - [ ] testing
 - [ ] add liquidity (+ refactoring)
@@ -34,6 +34,7 @@ Roadmap:
 - [ ] asymmetric fees
 - [ ] testing
 - [ ] invariant testing
+  - special attention to dynamic fees
   
 
 ////////////////////////////////////////////
