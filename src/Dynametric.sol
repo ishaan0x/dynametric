@@ -123,8 +123,6 @@ contract Dynametric is ReentrancyGuard {
         address tokenOut,
         uint256 minAmountOut
     ) external nonReentrant {
-        require(amountIn > 0, "Amount is zero");
-
         (address token0, address token1, bool _tokensInOrder) = _getTokensOrder(
             tokenIn,
             tokenOut
@@ -137,15 +135,29 @@ contract Dynametric is ReentrancyGuard {
             uint256 amountOut
         ) = _getNewAmounts(pool, amountIn, _tokensInOrder);
 
-        require(amountOut >= minAmountOut, "Exceeded max slippage");
+        if (amountOut < minAmountOut) {
+            revert Dynametric__ExceededMaxSlippage(
+                tokenIn,
+                amountIn,
+                tokenOut,
+                amountOut,
+                minAmountOut
+            );
+        }
 
         _updatePool(token0, token1, newAmount0, newAmount1);
         _transferTokens(tokenIn, tokenOut, amountIn, amountOut);
 
-        require(
-            newAmount0 * newAmount1 >= pool.amount0 * pool.amount1,
-            "Swap failed"
-        );
+        if (newAmount0 * newAmount1 < pool.amount0 * pool.amount1) {
+            revert Dynametric__SwapFailed(
+                token0,
+                token1,
+                pool.amount0,
+                pool.amount1,
+                newAmount0,
+                newAmount1
+            );
+        }
     }
 
     function swapInputForExactOutput(
@@ -154,8 +166,6 @@ contract Dynametric is ReentrancyGuard {
         address tokenOut,
         uint256 amountOut
     ) external nonReentrant {
-        require(amountOut > 0, "Amount is zero");
-
         (address token0, address token1, bool _tokensInOrder) = _getTokensOrder(
             tokenIn,
             tokenOut
@@ -168,15 +178,29 @@ contract Dynametric is ReentrancyGuard {
             uint256 amountIn
         ) = _getNewAmounts(pool, amountOut, !_tokensInOrder);
 
-        require(amountIn <= maxAmountIn, "Exceeded max slippage");
+        if (amountIn > maxAmountIn) {
+            revert Dynametric__ExceededMaxSlippage(
+                tokenIn,
+                amountIn,
+                tokenOut,
+                amountOut,
+                maxAmountIn
+            );
+        }
 
         _updatePool(token0, token1, newAmount0, newAmount1);
         _transferTokens(tokenIn, tokenOut, amountIn, amountOut);
 
-        require(
-            newAmount0 * newAmount1 >= pool.amount0 * pool.amount1,
-            "Swap failed"
-        );
+        if (newAmount0 * newAmount1 < pool.amount0 * pool.amount1) {
+            revert Dynametric__SwapFailed(
+                token0,
+                token1,
+                pool.amount0,
+                pool.amount1,
+                newAmount0,
+                newAmount1
+            );
+        }
     }
 
     function _getNewAmounts(
