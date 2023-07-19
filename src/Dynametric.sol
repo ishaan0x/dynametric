@@ -235,14 +235,14 @@ contract Dynametric is ReentrancyGuard {
             newAmount0 = k / newAmount1;
             amountIn =
                 ((pool.amount0 - newAmount0) *
-                    (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
+                    (PRECISION + getFee(pool.highPrice, pool.lowPrice))) /
                 PRECISION;
         } else {
             newAmount0 = pool.amount0 - amountOut;
             newAmount1 = k / newAmount0;
             amountIn =
                 ((pool.amount1 - newAmount1) *
-                    (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
+                    (PRECISION + getFee(pool.highPrice, pool.lowPrice))) /
                 PRECISION;
         }
 
