@@ -333,7 +333,7 @@ contract Dynametric is ReentrancyGuard {
         if (percentVolatility >= HIGH_VOLATILITY_BARRIER) return MAX_VOLATILITY;
 
         return
-            ((MAX_VOLATILITY - MIN_VOLATILITY) *
+            (MIN_VOLATILITY + (MAX_VOLATILITY - MIN_VOLATILITY) *
                 (percentVolatility - LOW_VOLATILITY_BARRIER)) /
             (HIGH_VOLATILITY_BARRIER - LOW_VOLATILITY_BARRIER);
     }

@@ -218,23 +218,23 @@ contract TestDynametric is Test {
         console.log(tokenA.balanceOf(address(dynametric)));
         console.log(tokenB.balanceOf(address(dynametric)));
 
-        dynametric.swapExactInputForOutput(
-            addressB,
-            SWAP_AMOUNT,
-            addressA,
-            SMALL_AMOUNT
-        );
-        // dynametric.swapInputForExactOutput(
+        // dynametric.swapExactInputForOutput(
         //     addressB,
         //     SWAP_AMOUNT,
         //     addressA,
-        //     SWAP_AMOUNT
+        //     SMALL_AMOUNT
         // );
+        dynametric.swapInputForExactOutput(
+            addressB,
+            SWAP_AMOUNT,
+            addressA,
+            SWAP_AMOUNT
+        );
 
         console.log(tokenA.balanceOf(SWAPPER));
         console.log(tokenB.balanceOf(SWAPPER));
-        console.log(tokenB.balanceOf(address(dynametric)));
         console.log(tokenA.balanceOf(address(dynametric)));
+        console.log(tokenB.balanceOf(address(dynametric)));
 
         assertEq(tokenA.balanceOf(SWAPPER), STARTING_BALANCE);
         assert(tokenB.balanceOf(SWAPPER) < STARTING_BALANCE);
