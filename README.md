@@ -29,7 +29,7 @@ Roadmap:
 - [x] swapInputForExactOutput 
 - [x] testing 
 - [x] refactoring
-- [ ] add liquidity (+ refactoring)
+- [x] add liquidity (+ refactoring)
 - [ ] remove liquidity (+ refactoring)
 - [ ] testing
 - [ ] asymmetric fees
