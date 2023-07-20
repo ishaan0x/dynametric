@@ -26,8 +26,9 @@ Roadmap:
 - [x] testing
 - [x] dynamic fees
 - [x] testing
-- [ ] swapInputForExactOutput (+ refactoring)
-- [ ] testing
+- [x] swapInputForExactOutput 
+- [x] testing 
+- [ ] refactoring
 - [ ] add liquidity (+ refactoring)
 - [ ] remove liquidity (+ refactoring)
 - [ ] testing
