@@ -39,6 +39,7 @@ contract Dynametric is ReentrancyGuard {
         uint256 newAmount0,
         uint256 newAmount1
     );
+    error Dynametric__InvariantBroken();
 
     /**
      * Type Declarations
@@ -136,30 +137,30 @@ contract Dynametric is ReentrancyGuard {
             revert Dynametric__PoolDoesNotExist(token0, token1);
 
         // Effects
-        
 
+        // Ensure equal amounts of liquidity
+        uint256 token0AmountInToken1 = maxAmount0 * pool.amount1 / pool.amount0;
+        if (token0AmountInToken1 <= maxAmount1)
+            maxAmount1 = token0AmountInToken1;
+        else {
+            uint256 token1AmountInToken0 = maxAmount1 * pool.amount0 / pool.amount1;
+            maxAmount0 = token1AmountInToken0;
+        }
 
-        uint256 numLPtokens = (amount0 * amount1);
-        uint256 userLPtokens = numLPtokens - MINIMUM_LIQUIDITY;
-        uint256 _currentPrice = currentRatio(amount0, amount1);
-        s_pools[token0][token1] = Pool({
-            token0: token0,
-            token1: token1,
-            amount0: amount0,
-            amount1: amount1,
-            numLPtokens: numLPtokens,
-            highPrice: _currentPrice,
-            lowPrice: _currentPrice,
-            volatilityIndex: 0,
-            lastUpdate: block.timestamp
-        });
-        s_lpBalances[token0][token1][msg.sender] = userLPtokens;
+        uint256 numLPtokens = pool.numLPtokens * maxAmount0 / pool.amount0;
+
+        s_pools[token0][token1].amount0 += maxAmount0;
+        s_pools[token0][token1].amount1 += maxAmount1;
+        s_pools[token0][token1].numLPtokens += numLPtokens;
+        s_lpBalances[token0][token1][msg.sender] += numLPtokens;
 
         // Interactions
-        IERC20(token0).transferFrom(msg.sender, address(this), amount0);
-        IERC20(token1).transferFrom(msg.sender, address(this), amount1);
+        IERC20(token0).transferFrom(msg.sender, address(this), maxAmount0);
+        IERC20(token1).transferFrom(msg.sender, address(this), maxAmount1);
 
-        // Invariant - N/A
+        // Invariant
+        if (s_pools[token0][token1].amount0 * s_pools[token0][token1].amount1 <= k)
+            revert Dynametric__InvariantBroken();
     }
 
     function swapExactInputForOutput(
