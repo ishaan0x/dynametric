@@ -74,12 +74,7 @@ contract TestDynametric is Test {
     function test_CreatePoolWithLessTokensThanMinimumLiquidity() public {
         vm.prank(LPer);
         vm.expectRevert();
-        dynametric.createPool(
-            addressA,
-            SMALL_AMOUNT,
-            addressB,
-            SMALL_AMOUNT
-        );
+        dynametric.createPool(addressA, SMALL_AMOUNT, addressB, SMALL_AMOUNT);
     }
 
     // Create pool - happy path
@@ -108,7 +103,7 @@ contract TestDynametric is Test {
         vm.startPrank(LPer);
         tokenA.increaseAllowance(address(dynametric), 2 * SWAP_AMOUNT);
         tokenB.increaseAllowance(address(dynametric), 2 * SWAP_AMOUNT);
-        
+
         dynametric.createPool(addressA, SWAP_AMOUNT, addressB, SWAP_AMOUNT);
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -125,13 +120,18 @@ contract TestDynametric is Test {
         vm.startPrank(LPer);
         tokenA.increaseAllowance(address(dynametric), SWAP_AMOUNT);
         tokenB.increaseAllowance(address(dynametric), SWAP_AMOUNT);
-        
+
         dynametric.createPool(addressA, SWAP_AMOUNT, addressB, SWAP_AMOUNT);
         vm.stopPrank();
 
         vm.startPrank(SWAPPER);
         tokenA.increaseAllowance(address(dynametric), SWAP_AMOUNT);
-        dynametric.swapExactInputForOutput(addressA, SWAP_AMOUNT, addressB, SMALL_AMOUNT);
+        dynametric.swapExactInputForOutput(
+            addressA,
+            SWAP_AMOUNT,
+            addressB,
+            SMALL_AMOUNT
+        );
 
         assertEq(tokenA.balanceOf(SWAPPER), STARTING_BALANCE - SWAP_AMOUNT);
         assert(tokenB.balanceOf(SWAPPER) < STARTING_BALANCE + SWAP_AMOUNT / 2);
@@ -145,13 +145,18 @@ contract TestDynametric is Test {
         vm.startPrank(LPer);
         tokenA.increaseAllowance(address(dynametric), SWAP_AMOUNT);
         tokenB.increaseAllowance(address(dynametric), SWAP_AMOUNT);
-        
+
         dynametric.createPool(addressB, SWAP_AMOUNT, addressA, SWAP_AMOUNT);
         vm.stopPrank();
 
         vm.startPrank(SWAPPER);
         tokenB.increaseAllowance(address(dynametric), SWAP_AMOUNT);
-        dynametric.swapExactInputForOutput(addressB, SWAP_AMOUNT, addressA, SMALL_AMOUNT);
+        dynametric.swapExactInputForOutput(
+            addressB,
+            SWAP_AMOUNT,
+            addressA,
+            SMALL_AMOUNT
+        );
 
         assertEq(tokenB.balanceOf(SWAPPER), STARTING_BALANCE - SWAP_AMOUNT);
         assert(tokenA.balanceOf(SWAPPER) < STARTING_BALANCE + SWAP_AMOUNT / 2);
@@ -165,23 +170,76 @@ contract TestDynametric is Test {
         vm.startPrank(LPer);
         tokenA.increaseAllowance(address(dynametric), SWAP_AMOUNT);
         tokenB.increaseAllowance(address(dynametric), SWAP_AMOUNT);
-        
+
         dynametric.createPool(addressA, SWAP_AMOUNT, addressB, SWAP_AMOUNT);
         vm.stopPrank();
 
         vm.startPrank(SWAPPER);
         tokenA.increaseAllowance(address(dynametric), SWAP_AMOUNT);
 
-        vm.expectRevert(
-            // abi.encodeWithSelector(
-            //     Dynametric.Dynametric__ExceededMaxSlippage.selector,
-            //     addressA,
-            //     SWAP_AMOUNT,
-            //     addressB,
-            //     SWAP_AMOUNT / 2,
-            //     SWAP_AMOUNT
-            // )
+        vm.expectRevert();
+        // abi.encodeWithSelector(
+        //     Dynametric.Dynametric__ExceededMaxSlippage.selector,
+        //     addressA,
+        //     SWAP_AMOUNT,
+        //     addressB,
+        //     SWAP_AMOUNT / 2,
+        //     SWAP_AMOUNT
+        // )
+        dynametric.swapExactInputForOutput(
+            addressA,
+            SWAP_AMOUNT,
+            addressB,
+            SWAP_AMOUNT
         );
-        dynametric.swapExactInputForOutput(addressA, SWAP_AMOUNT, addressB, SWAP_AMOUNT);
+    }
+
+    // Swap on pool - happy path
+    function test_SwapAndSwapBack_HappyPath() public {
+        vm.startPrank(LPer);
+        tokenA.increaseAllowance(address(dynametric), SWAP_AMOUNT);
+        tokenB.increaseAllowance(address(dynametric), SWAP_AMOUNT);
+
+        dynametric.createPool(addressA, SWAP_AMOUNT, addressB, SWAP_AMOUNT);
+        vm.stopPrank();
+
+        vm.startPrank(SWAPPER);
+        tokenA.increaseAllowance(address(dynametric), SWAP_AMOUNT);
+        dynametric.swapExactInputForOutput(
+            addressA,
+            SWAP_AMOUNT,
+            addressB,
+            SMALL_AMOUNT
+        );
+        tokenB.increaseAllowance(address(dynametric), SWAP_AMOUNT);
+
+        console.log(tokenA.balanceOf(SWAPPER));
+        console.log(tokenB.balanceOf(SWAPPER));
+        console.log(tokenA.balanceOf(address(dynametric)));
+        console.log(tokenB.balanceOf(address(dynametric)));
+
+        dynametric.swapExactInputForOutput(
+            addressB,
+            SWAP_AMOUNT,
+            addressA,
+            SMALL_AMOUNT
+        );
+        // dynametric.swapInputForExactOutput(
+        //     addressB,
+        //     SWAP_AMOUNT,
+        //     addressA,
+        //     SWAP_AMOUNT
+        // );
+
+        console.log(tokenA.balanceOf(SWAPPER));
+        console.log(tokenB.balanceOf(SWAPPER));
+        console.log(tokenB.balanceOf(address(dynametric)));
+        console.log(tokenA.balanceOf(address(dynametric)));
+
+        assertEq(tokenA.balanceOf(SWAPPER), STARTING_BALANCE);
+        assert(tokenB.balanceOf(SWAPPER) < STARTING_BALANCE);
+
+        assertEq(tokenA.balanceOf(address(dynametric)), SWAP_AMOUNT);
+        assert(tokenB.balanceOf(address(dynametric)) > SWAP_AMOUNT);
     }
 }

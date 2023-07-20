@@ -153,6 +153,7 @@ contract Dynametric is ReentrancyGuard {
                 ((pool.amount0 - newAmount0) *
                     (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
                 PRECISION;
+            newAmount0 = pool.amount0 - amountOut;
         } else {
             newAmount0 = pool.amount0 + amountIn;
             newAmount1 = k / newAmount0;
@@ -160,6 +161,7 @@ contract Dynametric is ReentrancyGuard {
                 ((pool.amount1 - newAmount1) *
                     (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
                 PRECISION;
+            newAmount1 = pool.amount1 - amountOut;
         }
 
         if (amountOut < minAmountOut)
@@ -183,7 +185,7 @@ contract Dynametric is ReentrancyGuard {
         } else if (newPrice > pool.highPrice)
             s_pools[token0][token1].highPrice = newPrice;
         else if (newPrice < pool.lowPrice)
-            s_pools[token0][token1].highPrice = newPrice;
+            s_pools[token0][token1].lowPrice = newPrice;
 
         // Interactions
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
@@ -237,6 +239,7 @@ contract Dynametric is ReentrancyGuard {
                 ((pool.amount0 - newAmount0) *
                     (PRECISION + getFee(pool.highPrice, pool.lowPrice))) /
                 PRECISION;
+            newAmount0 = pool.amount0 + amountIn;
         } else {
             newAmount0 = pool.amount0 - amountOut;
             newAmount1 = k / newAmount0;
@@ -244,6 +247,7 @@ contract Dynametric is ReentrancyGuard {
                 ((pool.amount1 - newAmount1) *
                     (PRECISION + getFee(pool.highPrice, pool.lowPrice))) /
                 PRECISION;
+            newAmount1 = pool.amount1 + amountIn;
         }
 
         if (amountIn > maxAmountIn)
@@ -267,7 +271,7 @@ contract Dynametric is ReentrancyGuard {
         } else if (newPrice > pool.highPrice)
             s_pools[token0][token1].highPrice = newPrice;
         else if (newPrice < pool.lowPrice)
-            s_pools[token0][token1].highPrice = newPrice;
+            s_pools[token0][token1].lowPrice = newPrice;
 
         // Interactions
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
@@ -321,7 +325,7 @@ contract Dynametric is ReentrancyGuard {
     function getFee(
         uint256 highPrice,
         uint256 lowPrice
-    ) private pure returns (uint256) {
+    ) internal pure returns (uint256) {
         uint256 percentVolatility = ((highPrice - lowPrice) * PRICE_FLOATING) /
             lowPrice;
 
