@@ -117,6 +117,51 @@ contract Dynametric is ReentrancyGuard {
         // Invariant - N/A
     }
 
+    function addLiquidity(
+        address token0,
+        uint256 maxAmount0,
+        address token1,
+        uint256 maxAmount1
+    ) external nonReentrant {
+        // Checks
+        if (maxAmount0 == 0 || maxAmount1 == 0) revert Dynametric__AmountIsZero();
+        if (token0 == token1)
+            revert Dynametric__CannotCreatePoolWithSameToken(token0);
+        if (!tokensInOrder(token0, token1)) {
+            (token0, token1) = swap(token0, token1);
+            (maxAmount0, maxAmount1) = swap(maxAmount0, maxAmount1);
+        }
+        Pool memory pool = s_pools[token0][token1];
+        if (pool.token0 == address(0))
+            revert Dynametric__PoolDoesNotExist(token0, token1);
+
+        // Effects
+        
+
+
+        uint256 numLPtokens = (amount0 * amount1);
+        uint256 userLPtokens = numLPtokens - MINIMUM_LIQUIDITY;
+        uint256 _currentPrice = currentRatio(amount0, amount1);
+        s_pools[token0][token1] = Pool({
+            token0: token0,
+            token1: token1,
+            amount0: amount0,
+            amount1: amount1,
+            numLPtokens: numLPtokens,
+            highPrice: _currentPrice,
+            lowPrice: _currentPrice,
+            volatilityIndex: 0,
+            lastUpdate: block.timestamp
+        });
+        s_lpBalances[token0][token1][msg.sender] = userLPtokens;
+
+        // Interactions
+        IERC20(token0).transferFrom(msg.sender, address(this), amount0);
+        IERC20(token1).transferFrom(msg.sender, address(this), amount1);
+
+        // Invariant - N/A
+    }
+
     function swapExactInputForOutput(
         address tokenIn,
         uint256 amountIn,
@@ -243,6 +288,34 @@ contract Dynametric is ReentrancyGuard {
         );
     }
 
+    function _swapInitialize(
+        address tokenIn,
+        address tokenOut
+    )
+        internal
+        view
+        returns (
+            address token0,
+            address token1,
+            bool _tokensInOrder,
+            Pool memory pool,
+            uint256 k
+        )
+    {
+        _tokensInOrder = tokensInOrder(tokenIn, tokenOut);
+
+        if (_tokensInOrder) {
+            token0 = tokenIn;
+            token1 = tokenOut;
+        } else {
+            token0 = tokenOut;
+            token1 = tokenIn;
+        }
+
+        pool = _getPool(token0, token1);
+        k = pool.amount0 * pool.amount1;
+    }
+
     function _executeSwap(
         address tokenIn,
         address tokenOut,
@@ -283,34 +356,6 @@ contract Dynametric is ReentrancyGuard {
                 newAmount0,
                 newAmount1
             );
-    }
-
-    function _swapInitialize(
-        address tokenIn,
-        address tokenOut
-    )
-        internal
-        view
-        returns (
-            address token0,
-            address token1,
-            bool _tokensInOrder,
-            Pool memory pool,
-            uint256 k
-        )
-    {
-        _tokensInOrder = tokensInOrder(tokenIn, tokenOut);
-
-        if (_tokensInOrder) {
-            token0 = tokenIn;
-            token1 = tokenOut;
-        } else {
-            token0 = tokenOut;
-            token1 = tokenIn;
-        }
-
-        pool = _getPool(token0, token1);
-        k = pool.amount0 * pool.amount1;
     }
 
     /**

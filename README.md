@@ -28,7 +28,7 @@ Roadmap:
 - [x] testing
 - [x] swapInputForExactOutput 
 - [x] testing 
-- [ ] refactoring
+- [x] refactoring
 - [ ] add liquidity (+ refactoring)
 - [ ] remove liquidity (+ refactoring)
 - [ ] testing
