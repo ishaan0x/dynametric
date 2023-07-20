@@ -126,19 +126,12 @@ contract Dynametric is ReentrancyGuard {
         // Checks
         if (amountIn == 0) revert Dynametric__AmountIsZero();
 
-        address token0;
-        address token1;
-        bool _tokensInOrder = tokensInOrder(tokenIn, tokenOut);
-
-        if (_tokensInOrder) {
-            token0 = tokenIn;
-            token1 = tokenOut;
-        } else {
-            token0 = tokenOut;
-            token1 = tokenIn;
-        }
-
-        Pool memory pool = _getPool(token0, token1);
+        (
+            address token0,
+            address token1,
+            bool _tokensInOrder,
+            Pool memory pool
+        ) = _swapInitialize(tokenIn, tokenOut);
 
         // Effects
         uint256 k = pool.amount0 * pool.amount1;
@@ -212,19 +205,12 @@ contract Dynametric is ReentrancyGuard {
         // Checks
         if (amountOut == 0) revert Dynametric__AmountIsZero();
 
-        address token0;
-        address token1;
-        bool _tokensInOrder = tokensInOrder(tokenIn, tokenOut);
-
-        if (_tokensInOrder) {
-            token0 = tokenIn;
-            token1 = tokenOut;
-        } else {
-            token0 = tokenOut;
-            token1 = tokenIn;
-        }
-
-        Pool memory pool = _getPool(token0, token1);
+        (
+            address token0,
+            address token1,
+            bool _tokensInOrder,
+            Pool memory pool
+        ) = _swapInitialize(tokenIn, tokenOut);
 
         // Effects
         uint256 k = pool.amount0 * pool.amount1;
@@ -282,6 +268,32 @@ contract Dynametric is ReentrancyGuard {
                 newAmount0,
                 newAmount1
             );
+    }
+
+    function _swapInitialize(
+        address tokenIn,
+        address tokenOut
+    )
+        internal
+        view
+        returns (
+            address token0,
+            address token1,
+            bool _tokensInOrder,
+            Pool memory pool
+        )
+    {
+        _tokensInOrder = tokensInOrder(tokenIn, tokenOut);
+
+        if (_tokensInOrder) {
+            token0 = tokenIn;
+            token1 = tokenOut;
+        } else {
+            token0 = tokenOut;
+            token1 = tokenIn;
+        }
+
+        pool = _getPool(token0, token1);
     }
 
     /**
