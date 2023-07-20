@@ -138,23 +138,22 @@ contract Dynametric is ReentrancyGuard {
         uint256 newAmount0;
         uint256 newAmount1;
         uint256 amountOut;
+        uint256 fee = getFee(pool.highPrice, pool.lowPrice);
 
-        if (!_tokensInOrder) {
-            newAmount1 = pool.amount1 + amountIn;
-            newAmount0 = k / newAmount1;
-            amountOut =
-                ((pool.amount0 - newAmount0) *
-                    (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
-                PRECISION;
-            newAmount0 = pool.amount0 - amountOut;
-        } else {
+        if (_tokensInOrder) {
             newAmount0 = pool.amount0 + amountIn;
             newAmount1 = k / newAmount0;
             amountOut =
-                ((pool.amount1 - newAmount1) *
-                    (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
+                ((pool.amount1 - newAmount1) * (PRECISION - fee)) /
                 PRECISION;
             newAmount1 = pool.amount1 - amountOut;
+        } else {
+            newAmount1 = pool.amount1 + amountIn;
+            newAmount0 = k / newAmount1;
+            amountOut =
+                ((pool.amount0 - newAmount0) * (PRECISION - fee)) /
+                PRECISION;
+            newAmount0 = pool.amount0 - amountOut;
         }
 
         if (amountOut < minAmountOut)
@@ -202,17 +201,21 @@ contract Dynametric is ReentrancyGuard {
         uint256 newAmount0;
         uint256 newAmount1;
         uint256 amountIn;
-        uint256 fee = PRECISION + getFee(pool.highPrice, pool.lowPrice);
+        uint256 fee = getFee(pool.highPrice, pool.lowPrice);
 
         if (_tokensInOrder) {
             newAmount1 = pool.amount1 - amountOut;
             newAmount0 = k / newAmount1;
-            amountIn = ((newAmount0 - pool.amount0) * fee) / PRECISION;
+            amountIn =
+                ((newAmount0 - pool.amount0) * (PRECISION + fee)) /
+                PRECISION;
             newAmount0 = pool.amount0 + amountIn;
         } else {
             newAmount0 = pool.amount0 - amountOut;
             newAmount1 = k / newAmount0;
-            amountIn = ((newAmount1 - pool.amount1) * fee) / PRECISION;
+            amountIn =
+                ((newAmount1 - pool.amount1) * (PRECISION + fee)) /
+                PRECISION;
             newAmount1 = pool.amount1 + amountIn;
         }
 
