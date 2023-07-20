@@ -231,22 +231,17 @@ contract Dynametric is ReentrancyGuard {
         uint256 newAmount0;
         uint256 newAmount1;
         uint256 amountIn;
+        uint256 fee = PRECISION + getFee(pool.highPrice, pool.lowPrice);
 
         if (_tokensInOrder) {
             newAmount1 = pool.amount1 - amountOut;
             newAmount0 = k / newAmount1;
-            amountIn =
-                ((pool.amount0 - newAmount0) *
-                    (PRECISION + getFee(pool.highPrice, pool.lowPrice))) /
-                PRECISION;
+            amountIn = ((newAmount0 - pool.amount0) * fee) / PRECISION;
             newAmount0 = pool.amount0 + amountIn;
         } else {
             newAmount0 = pool.amount0 - amountOut;
             newAmount1 = k / newAmount0;
-            amountIn =
-                ((pool.amount1 - newAmount1) *
-                    (PRECISION + getFee(pool.highPrice, pool.lowPrice))) /
-                PRECISION;
+            amountIn = ((newAmount1 - pool.amount1) * fee) / PRECISION;
             newAmount1 = pool.amount1 + amountIn;
         }
 
@@ -333,7 +328,8 @@ contract Dynametric is ReentrancyGuard {
         if (percentVolatility >= HIGH_VOLATILITY_BARRIER) return MAX_VOLATILITY;
 
         return
-            (MIN_VOLATILITY + (MAX_VOLATILITY - MIN_VOLATILITY) *
+            (MIN_VOLATILITY +
+                (MAX_VOLATILITY - MIN_VOLATILITY) *
                 (percentVolatility - LOW_VOLATILITY_BARRIER)) /
             (HIGH_VOLATILITY_BARRIER - LOW_VOLATILITY_BARRIER);
     }
