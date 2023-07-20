@@ -126,8 +126,6 @@ contract Dynametric is ReentrancyGuard {
     ) external nonReentrant {
         // Checks
         if (maxAmount0 == 0 || maxAmount1 == 0) revert Dynametric__AmountIsZero();
-        if (token0 == token1)
-            revert Dynametric__CannotCreatePoolWithSameToken(token0);
         if (!tokensInOrder(token0, token1)) {
             (token0, token1) = swap(token0, token1);
             (maxAmount0, maxAmount1) = swap(maxAmount0, maxAmount1);
@@ -169,42 +167,28 @@ contract Dynametric is ReentrancyGuard {
         uint256 numLPtokens
     ) external nonReentrant {
         // Checks
-        if (maxAmount0 == 0 || maxAmount1 == 0) revert Dynametric__AmountIsZero();
-        if (token0 == token1)
-            revert Dynametric__CannotCreatePoolWithSameToken(token0);
+        if (numLPtokens == 0) revert Dynametric__AmountIsZero();
         if (!tokensInOrder(token0, token1)) {
             (token0, token1) = swap(token0, token1);
-            (maxAmount0, maxAmount1) = swap(maxAmount0, maxAmount1);
         }
         Pool memory pool = s_pools[token0][token1];
         if (pool.token0 == address(0))
             revert Dynametric__PoolDoesNotExist(token0, token1);
 
         // Effects
-
-        // Ensure equal amounts of liquidity
-        uint256 token0AmountInToken1 = maxAmount0 * pool.amount1 / pool.amount0;
-        if (token0AmountInToken1 <= maxAmount1)
-            maxAmount1 = token0AmountInToken1;
-        else {
-            uint256 token1AmountInToken0 = maxAmount1 * pool.amount0 / pool.amount1;
-            maxAmount0 = token1AmountInToken0;
-        }
-
-        uint256 numLPtokens = pool.numLPtokens * maxAmount0 / pool.amount0;
-
-        s_pools[token0][token1].amount0 += maxAmount0;
-        s_pools[token0][token1].amount1 += maxAmount1;
-        s_pools[token0][token1].numLPtokens += numLPtokens;
-        s_lpBalances[token0][token1][msg.sender] += numLPtokens;
+        uint256 amount0 = pool.amount0 * numLPtokens / pool.numLPtokens;
+        uint256 amount1 = pool.amount1 * numLPtokens / pool.numLPtokens;
+        
+        s_pools[token0][token1].amount0 -= amount0;
+        s_pools[token0][token1].amount1 -= amount1;
+        s_pools[token0][token1].numLPtokens -= numLPtokens;
+        s_lpBalances[token0][token1][msg.sender] -= numLPtokens;
 
         // Interactions
-        IERC20(token0).transferFrom(msg.sender, address(this), maxAmount0);
-        IERC20(token1).transferFrom(msg.sender, address(this), maxAmount1);
+        IERC20(token0).transfer(msg.sender, amount0);
+        IERC20(token1).transfer(msg.sender, amount1);
 
-        // Invariant
-        if (s_pools[token0][token1].amount0 * s_pools[token0][token1].amount1 <= pool.amount0 * pool.amount1)
-            revert Dynametric__InvariantBroken();
+        // Invariant - N/A
     }
 
     function swapExactInputForOutput(
