@@ -2,12 +2,13 @@
 pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
-import {Dynametric} from "../src/Dynametric.sol";
+import {DynametricNoFees, Dynametric} from "../src/DynametricNoFees.sol";
 import {DeployDynametric} from "../script/Dynametric.s.sol";
 import {ERC20Mock} from "openzeppelin/mocks/ERC20Mock.sol";
 
 contract TestDynametric is Test {
     Dynametric public dynametric;
+    DynametricNoFees dnf;
     ERC20Mock tokenA;
     address addressA;
     ERC20Mock tokenB;
@@ -22,7 +23,7 @@ contract TestDynametric is Test {
 
     function setUp() public {
         DeployDynametric deployer = new DeployDynametric();
-        dynametric = deployer.run();
+        (dynametric, dnf) = deployer.run();
 
         tokenA = new ERC20Mock();
         addressA = address(tokenA);

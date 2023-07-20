@@ -30,12 +30,12 @@ Roadmap:
 - [x] testing 
 - [x] refactoring
 - [x] add liquidity (+ refactoring)
-- [ ] remove liquidity (+ refactoring)
+- [x] remove liquidity (+ refactoring)
 - [ ] testing
+- [ ] refactoring
+- [ ] invariant testing (special attention to dynamic fees)
 - [ ] asymmetric fees
 - [ ] testing
-- [ ] invariant testing
-  - special attention to dynamic fees
   
 
 ////////////////////////////////////////////
