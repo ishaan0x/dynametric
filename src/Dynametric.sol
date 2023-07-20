@@ -126,42 +126,34 @@ contract Dynametric is ReentrancyGuard {
         // Checks
         if (amountIn == 0) revert Dynametric__AmountIsZero();
 
-        address token0;
-        address token1;
-        bool _tokensInOrder = tokensInOrder(tokenIn, tokenOut);
-
-        if (_tokensInOrder) {
-            token0 = tokenIn;
-            token1 = tokenOut;
-        } else {
-            token0 = tokenOut;
-            token1 = tokenIn;
-        }
-
-        Pool memory pool = _getPool(token0, token1);
+        (
+            address token0,
+            address token1,
+            bool _tokensInOrder,
+            Pool memory pool,
+            uint256 k
+        ) = _swapInitialize(tokenIn, tokenOut);
 
         // Effects
-        uint256 k = pool.amount0 * pool.amount1;
         uint256 newAmount0;
         uint256 newAmount1;
         uint256 amountOut;
+        uint256 fee = getFee(pool.highPrice, pool.lowPrice);
 
-        if (!_tokensInOrder) {
-            newAmount1 = pool.amount1 + amountIn;
-            newAmount0 = k / newAmount1;
-            amountOut =
-                ((pool.amount0 - newAmount0) *
-                    (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
-                PRECISION;
-            newAmount0 = pool.amount0 - amountOut;
-        } else {
+        if (_tokensInOrder) {
             newAmount0 = pool.amount0 + amountIn;
             newAmount1 = k / newAmount0;
             amountOut =
-                ((pool.amount1 - newAmount1) *
-                    (PRECISION - getFee(pool.highPrice, pool.lowPrice))) /
+                ((pool.amount1 - newAmount1) * (PRECISION - fee)) /
                 PRECISION;
             newAmount1 = pool.amount1 - amountOut;
+        } else {
+            newAmount1 = pool.amount1 + amountIn;
+            newAmount0 = k / newAmount1;
+            amountOut =
+                ((pool.amount0 - newAmount0) * (PRECISION - fee)) /
+                PRECISION;
+            newAmount0 = pool.amount0 - amountOut;
         }
 
         if (amountOut < minAmountOut)
@@ -173,6 +165,96 @@ contract Dynametric is ReentrancyGuard {
                 minAmountOut
             );
 
+        // Effects, Interactions, and Invariants
+        _executeSwap(
+            tokenIn,
+            tokenOut,
+            amountIn,
+            amountOut,
+            token0,
+            token1,
+            newAmount0,
+            newAmount1,
+            pool,
+            k
+        );
+    }
+
+    function swapInputForExactOutput(
+        address tokenIn,
+        uint256 maxAmountIn,
+        address tokenOut,
+        uint256 amountOut
+    ) external nonReentrant {
+        // Checks
+        if (amountOut == 0) revert Dynametric__AmountIsZero();
+
+        (
+            address token0,
+            address token1,
+            bool _tokensInOrder,
+            Pool memory pool,
+            uint256 k
+        ) = _swapInitialize(tokenIn, tokenOut);
+
+        // Effects
+        uint256 newAmount0;
+        uint256 newAmount1;
+        uint256 amountIn;
+        uint256 fee = getFee(pool.highPrice, pool.lowPrice);
+
+        if (_tokensInOrder) {
+            newAmount1 = pool.amount1 - amountOut;
+            newAmount0 = k / newAmount1;
+            amountIn =
+                ((newAmount0 - pool.amount0) * (PRECISION + fee)) /
+                PRECISION;
+            newAmount0 = pool.amount0 + amountIn;
+        } else {
+            newAmount0 = pool.amount0 - amountOut;
+            newAmount1 = k / newAmount0;
+            amountIn =
+                ((newAmount1 - pool.amount1) * (PRECISION + fee)) /
+                PRECISION;
+            newAmount1 = pool.amount1 + amountIn;
+        }
+
+        if (amountIn > maxAmountIn)
+            revert Dynametric__ExceededMaxSlippage(
+                tokenIn,
+                amountIn,
+                tokenOut,
+                amountOut,
+                maxAmountIn
+            );
+
+        // Effects, Interactions, and Invariants
+        _executeSwap(
+            tokenIn,
+            tokenOut,
+            amountIn,
+            amountOut,
+            token0,
+            token1,
+            newAmount0,
+            newAmount1,
+            pool,
+            k
+        );
+    }
+
+    function _executeSwap(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        uint256 amountOut,
+        address token0,
+        address token1,
+        uint256 newAmount0,
+        uint256 newAmount1,
+        Pool memory pool,
+        uint256 k
+    ) internal {
         s_pools[token0][token1].amount0 = newAmount0;
         s_pools[token0][token1].amount1 = newAmount1;
         emit Swap(msg.sender, tokenIn, amountIn, tokenOut, amountOut);
@@ -203,18 +285,21 @@ contract Dynametric is ReentrancyGuard {
             );
     }
 
-    function swapInputForExactOutput(
+    function _swapInitialize(
         address tokenIn,
-        uint256 maxAmountIn,
-        address tokenOut,
-        uint256 amountOut
-    ) external nonReentrant {
-        // Checks
-        if (amountOut == 0) revert Dynametric__AmountIsZero();
-
-        address token0;
-        address token1;
-        bool _tokensInOrder = tokensInOrder(tokenIn, tokenOut);
+        address tokenOut
+    )
+        internal
+        view
+        returns (
+            address token0,
+            address token1,
+            bool _tokensInOrder,
+            Pool memory pool,
+            uint256 k
+        )
+    {
+        _tokensInOrder = tokensInOrder(tokenIn, tokenOut);
 
         if (_tokensInOrder) {
             token0 = tokenIn;
@@ -224,64 +309,8 @@ contract Dynametric is ReentrancyGuard {
             token1 = tokenIn;
         }
 
-        Pool memory pool = _getPool(token0, token1);
-
-        // Effects
-        uint256 k = pool.amount0 * pool.amount1;
-        uint256 newAmount0;
-        uint256 newAmount1;
-        uint256 amountIn;
-        uint256 fee = PRECISION + getFee(pool.highPrice, pool.lowPrice);
-
-        if (_tokensInOrder) {
-            newAmount1 = pool.amount1 - amountOut;
-            newAmount0 = k / newAmount1;
-            amountIn = ((newAmount0 - pool.amount0) * fee) / PRECISION;
-            newAmount0 = pool.amount0 + amountIn;
-        } else {
-            newAmount0 = pool.amount0 - amountOut;
-            newAmount1 = k / newAmount0;
-            amountIn = ((newAmount1 - pool.amount1) * fee) / PRECISION;
-            newAmount1 = pool.amount1 + amountIn;
-        }
-
-        if (amountIn > maxAmountIn)
-            revert Dynametric__ExceededMaxSlippage(
-                tokenIn,
-                amountIn,
-                tokenOut,
-                amountOut,
-                maxAmountIn
-            );
-
-        s_pools[token0][token1].amount0 = newAmount0;
-        s_pools[token0][token1].amount1 = newAmount1;
-        emit Swap(msg.sender, tokenIn, amountIn, tokenOut, amountOut);
-
-        uint256 newPrice = currentRatio(newAmount0, newAmount1);
-        if (block.timestamp >= pool.lastUpdate + VOLATILITY_UPDATE_WAIT) {
-            s_pools[token0][token1].lastUpdate = block.timestamp;
-            s_pools[token0][token1].highPrice = newPrice;
-            s_pools[token0][token1].highPrice = newPrice;
-        } else if (newPrice > pool.highPrice)
-            s_pools[token0][token1].highPrice = newPrice;
-        else if (newPrice < pool.lowPrice)
-            s_pools[token0][token1].lowPrice = newPrice;
-
-        // Interactions
-        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
-        IERC20(tokenOut).transfer(msg.sender, amountOut);
-
-        // Invariants
-        if (newAmount0 * newAmount1 < k)
-            revert Dynametric__SwapFailed(
-                token0,
-                token1,
-                pool.amount0,
-                pool.amount1,
-                newAmount0,
-                newAmount1
-            );
+        pool = _getPool(token0, token1);
+        k = pool.amount0 * pool.amount1;
     }
 
     /**
