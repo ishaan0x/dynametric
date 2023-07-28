@@ -178,7 +178,7 @@ contract Dynametric is ReentrancyGuard {
         // Effects
         uint256 amount0 = pool.amount0 * numLPtokens / pool.numLPtokens;
         uint256 amount1 = pool.amount1 * numLPtokens / pool.numLPtokens;
-        
+
         s_pools[token0][token1].amount0 -= amount0;
         s_pools[token0][token1].amount1 -= amount1;
         s_pools[token0][token1].numLPtokens -= numLPtokens;
@@ -423,7 +423,7 @@ contract Dynametric is ReentrancyGuard {
     function getFee(
         uint256 highPrice,
         uint256 lowPrice
-    ) internal pure returns (uint256) {
+    ) internal pure virtual returns (uint256) {
         uint256 percentVolatility = ((highPrice - lowPrice) * PRICE_FLOATING) /
             lowPrice;
 
