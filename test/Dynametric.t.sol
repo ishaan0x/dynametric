@@ -245,4 +245,99 @@ contract TestDynametric is Test {
     }
 
     // Swap, Add liquidity, Swap, Remove Liquidity
+    function test_IntegrationTest_HappyPath() public {
+        vm.startPrank(LPer);
+        tokenA.increaseAllowance(address(dnf), SWAP_AMOUNT);
+        tokenB.increaseAllowance(address(dnf), SWAP_AMOUNT);
+
+        dnf.createPool(addressA, SWAP_AMOUNT, addressB, SWAP_AMOUNT);
+        vm.stopPrank();
+
+        vm.startPrank(SWAPPER);
+        tokenA.increaseAllowance(address(dnf), SWAP_AMOUNT);
+        dnf.swapExactInputForOutput(
+            addressA,
+            SWAP_AMOUNT,
+            addressB,
+            SMALL_AMOUNT
+        );
+        vm.stopPrank();
+
+        vm.startPrank(LPer);
+        tokenA.increaseAllowance(address(dnf), SWAP_AMOUNT);
+        tokenB.increaseAllowance(address(dnf), SWAP_AMOUNT);
+
+        dnf.addLiquidity(addressA, SWAP_AMOUNT, addressB, SWAP_AMOUNT);
+        vm.stopPrank();
+
+        assertEq(tokenA.balanceOf(address(dnf)), SWAP_AMOUNT * 3);
+        assertEq(tokenB.balanceOf(address(dnf)), (SWAP_AMOUNT * 3) / 4);
+
+        vm.startPrank(SWAPPER);
+        tokenB.increaseAllowance(address(dnf), (SWAP_AMOUNT * 3) / 2);
+        dnf.swapInputForExactOutput(
+            addressB,
+            (SWAP_AMOUNT * 3) / 4,
+            addressA,
+            (SWAP_AMOUNT * 3) / 2
+        );
+        vm.stopPrank();
+
+        assertEq(tokenA.balanceOf(address(dnf)), (SWAP_AMOUNT * 3) / 2);
+        assertEq(tokenB.balanceOf(address(dnf)), (SWAP_AMOUNT * 3) / 2);
+
+        vm.startPrank(LPer);
+        uint lpbalance = dnf.getLPBalance(addressA, addressB, LPer);
+        assertEq(lpbalance, (SWAP_AMOUNT * SWAP_AMOUNT * 3) / 2 - 1000);
+        dnf.removeLiquidity(
+            addressA,
+            addressB,
+            lpbalance
+        );
+        vm.stopPrank();
+    }
+
+    // Try to remove more liquidity tokens than you have
+    function test_removeTooMuchLiquidity() public {
+        vm.startPrank(LPer);
+        tokenA.increaseAllowance(address(dynametric), SWAP_AMOUNT);
+        tokenB.increaseAllowance(address(dynametric), SWAP_AMOUNT);
+
+        dynametric.createPool(addressA, SWAP_AMOUNT, addressB, SWAP_AMOUNT);
+
+        vm.expectRevert();
+        dynametric.removeLiquidity(
+            addressA,
+            addressB,
+            SWAP_AMOUNT * SWAP_AMOUNT
+        );
+    }
+
+    // Add liquidity to pool that does not exist
+    function test_addLiquidityFromDNEPool() public {
+        vm.startPrank(LPer);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Dynametric.Dynametric__PoolDoesNotExist.selector,
+                addressA,
+                addressB
+            )
+        );
+        dynametric.addLiquidity(addressA, SWAP_AMOUNT, addressB, SWAP_AMOUNT);
+    }
+
+    // Remove liquidity from pool that does not exist
+    function test_removeLiquidityFromDNEPool() public {
+        vm.startPrank(LPer);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Dynametric.Dynametric__PoolDoesNotExist.selector,
+                addressA,
+                addressB
+            )
+        );
+        dynametric.removeLiquidity(addressA, addressB, SWAP_AMOUNT);
+    }
 }
